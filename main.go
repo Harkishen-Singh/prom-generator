@@ -97,7 +97,7 @@ func generateMetricsExemplars(c *catalog) {
 	for i := 0; i < c.numCounters; i++ {
 		tmp := prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: "metrics_gen",
-			Name:      fmt.Sprintf("counter_%d", i),
+			Name:      fmt.Sprintf("counter_%d_total", i),
 			Help:      fmt.Sprintf("Generated counter num %d.", i),
 		})
 		counter = append(counter, tmp)
@@ -106,7 +106,7 @@ func generateMetricsExemplars(c *catalog) {
 	for i := 0; i < c.numCounterWithExemplars; i++ {
 		tmp := prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: "metrics_exemplars_gen",
-			Name:      fmt.Sprintf("counter_%d", i),
+			Name:      fmt.Sprintf("counter_%d_total", i),
 			Help:      fmt.Sprintf("Generated counter exemplar num %d.", i),
 		})
 		counter = append(counter, tmp)
