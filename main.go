@@ -19,12 +19,14 @@ type catalog struct {
 	numGauges                 int
 	numHistograms             int
 	numHistogramWithExemplars int
+	numNativeHistograms       int
 }
 
 var (
-	counters   []prometheus.Counter
-	gauges     []prometheus.Gauge
-	histograms []prometheus.Histogram
+	counters         []prometheus.Counter
+	gauges           []prometheus.Gauge
+	histograms       []prometheus.Histogram
+	nativeHistograms []prometheus.Histogram
 )
 
 func main() {
@@ -34,6 +36,7 @@ func main() {
 
 	go func() {
 		t := time.NewTicker(c.evaluateEvery)
+		defer t.Stop()
 		for range t.C {
 			// Counters.
 			for i := 0; i < c.numCounters+c.numCounterWithExemplars; i++ {
@@ -71,6 +74,10 @@ func main() {
 					})
 				}
 			}
+			// Native high-res histograms.
+			for i := 0; i < c.numNativeHistograms; i++ {
+				nativeHistograms[i].Observe(float64(rand.Float32()))
+			}
 		}
 	}()
 
@@ -90,9 +97,10 @@ func main() {
 
 func generateMetricsExemplars(c *catalog) {
 	var (
-		counter   []prometheus.Counter
-		gauge     []prometheus.Gauge
-		histogram []prometheus.Histogram
+		counter         []prometheus.Counter
+		gauge           []prometheus.Gauge
+		histogram       []prometheus.Histogram
+		nativeHistogram []prometheus.Histogram
 	)
 	for i := 0; i < c.numCounters; i++ {
 		tmp := prometheus.NewCounter(prometheus.CounterOpts{
@@ -141,9 +149,23 @@ func generateMetricsExemplars(c *catalog) {
 		histogram = append(histogram, tmp)
 		prometheus.MustRegister(tmp)
 	}
+	for i := 0; i < c.numNativeHistograms; i++ {
+		tmp := prometheus.NewHistogram(prometheus.HistogramOpts{
+			Namespace:                       "metrics_gen",
+			Name:                            fmt.Sprintf("native_histogram_%d", i),
+			Help:                            fmt.Sprintf("Generated native histogram num %d", i),
+			Buckets:                         prometheus.DefBuckets,
+			NativeHistogramBucketFactor:     1.1,
+			NativeHistogramMaxBucketNumber:  150,
+			NativeHistogramMinResetDuration: time.Hour,
+		})
+		nativeHistogram = append(nativeHistogram, tmp)
+		prometheus.MustRegister(tmp)
+	}
 	counters = counter
 	gauges = gauge
 	histograms = histogram
+	nativeHistograms = nativeHistogram
 }
 
 func parseFlags(conf *catalog, args []string) {
@@ -153,6 +175,7 @@ func parseFlags(conf *catalog, args []string) {
 	flag.IntVar(&conf.numGauges, "num-gauges", 1, "Number of gauges to be generated.")
 	flag.IntVar(&conf.numHistograms, "num-histograms", 1, "Number of histograms to be generated.")
 	flag.IntVar(&conf.numHistogramWithExemplars, "num-histograms-with-exemplars", 1, "Number of histograms to be generated with exemplars.")
+	flag.IntVar(&conf.numNativeHistograms, "num-native-histograms", 1, "Number of native high-resolution histograms, each with max 150.")
 	_ = flag.CommandLine.Parse(args)
 }
 
